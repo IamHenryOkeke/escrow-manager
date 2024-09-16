@@ -13,6 +13,12 @@ contract EscrowManager {
         uint256 amount;
         bool buyerOk;
         bool sellerOk;
+        escrowStatus status;
+    }
+
+    enum escrowStatus {
+        ONGOING,
+        COMPLETED
     }
 
     event EscrowCreated(
@@ -43,7 +49,8 @@ contract EscrowManager {
             _arbiter,
             msg.value,
             false,
-            false
+            false,
+            escrowStatus.ONGOING
         );
         emit EscrowCreated(escrowId, msg.sender, _seller, _arbiter, msg.value);
         escrowId++;
@@ -69,23 +76,35 @@ contract EscrowManager {
         emit SellerOk(_escrowId);
     }
 
-    function withdrawToSeller(uint256 _escrowId) external {
+    function withdrawToSellerByArbiter(uint256 _escrowId) external {
         Escrow storage escrow = escrows[_escrowId];
+        require(escrow.status != escrowStatus.COMPLETED, "Escrow is completed");
         require(
             escrow.buyerOk && escrow.sellerOk,
-            "Both buyer and seller should agree"
+            "Both buyer and seller must agree"
+        );
+        require(
+            msg.sender == escrow.arbiter,
+            "Only arbiter can call this function"
         );
         address payable recipient = payable(escrow.seller);
         recipient.transfer(escrow.amount);
+        escrow.status = escrowStatus.COMPLETED;
         emit Withdraw(_escrowId, recipient);
     }
 
-    function withdrawByArbiter(uint256 _escrowId) external {
+    function withdrawToSellerByEscrowManager(
+        uint256 _escrowId
+    ) external onlyOwner {
         Escrow storage escrow = escrows[_escrowId];
-        require(msg.sender == escrow.arbiter, "Only arbiter can call this function");
-        address payable recipient = payable(escrow.arbiter);
+        require(escrow.status != escrowStatus.COMPLETED, "Escrow is completed");
+        require(
+            escrow.buyerOk && escrow.sellerOk,
+            "Both buyer and seller must agree"
+        );
+        address payable recipient = payable(escrow.seller);
         recipient.transfer(escrow.amount);
+        escrow.status = escrowStatus.COMPLETED;
         emit Withdraw(_escrowId, recipient);
-
     }
 }
