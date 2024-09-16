@@ -107,4 +107,14 @@ contract EscrowManager {
         escrow.status = escrowStatus.COMPLETED;
         emit Withdraw(_escrowId, recipient);
     }
+
+    function viewEscrow(
+        uint256 _escrowId
+    ) external view returns (Escrow memory) {
+        return escrows[_escrowId];
+    }
+
+    function viewBalance() external view onlyOwner returns (uint256) {
+        return address(this).balance;
+    }
 }
